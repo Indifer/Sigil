@@ -21,8 +21,7 @@ namespace Sigil.Impl
 
             return "aeiou".IndexOf(c) != -1;
         }
-
-#if !COREFXTODO // see https://github.com/dotnet/corefx/issues/4543 item 3 - would rather not offer the API than be wrong
+        
         public static bool IsVolatile(FieldInfo field)
         {
             // field builder doesn't implement GetRequiredCustomModifiers
@@ -30,7 +29,6 @@ namespace Sigil.Impl
 
             return Array.IndexOf(field.GetRequiredCustomModifiers(), typeof(System.Runtime.CompilerServices.IsVolatile)) >= 0;
         }
-#endif
 
         public static bool IsPrefix(OpCode op)
         {
@@ -67,6 +65,11 @@ namespace Sigil.Impl
             return ret;
         }
 
+        public static bool IsAssignableFrom(Type type1, Type type2)
+        {
+            return IsAssignableFrom(TypeOnStack.Get(type1), TypeOnStack.Get(type2));
+        }
+
         public static bool IsAssignableFrom(Type type1, TypeOnStack type2)
         {
             return TypeOnStack.Get(type1).IsAssignableFrom(type2);
@@ -74,6 +77,9 @@ namespace Sigil.Impl
 
         public static bool IsAssignableFrom(TypeOnStack type1, TypeOnStack type2)
         {
+            // voids aren't assignable
+            if (type1.IsVoid || type2.IsVoid) return false;
+
             // wildcards match *everything*
             if (type1 == TypeOnStack.Get<WildcardType>() || type2 == TypeOnStack.Get<WildcardType>()) return true;
 
@@ -164,6 +170,9 @@ namespace Sigil.Impl
 
             // quick and dirty base case
             if (t1 == typeof(object) && !TypeHelpers.IsValueType(t2)) return true;
+
+            // you have to box in this case
+            if (t1 == typeof(object) && TypeHelpers.IsValueType(t2)) return false;
 
             var t1Bases = GetBases(t1);
             var t2Bases = GetBases(t2);
